@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Optimal Road Network</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #2e004f, #6a0572);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            font-size: 26px;
+        }
+
+        .top-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 10px 18px;
+            font-size: 16px;
+            background-color: #ffcc00;
+            border: none;
+            cursor: pointer;
+            color: black;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #e6b800;
+        }
+
+        canvas {
+            background-color: rgba(0, 0, 0, 0.9);
+            border: 2px solid white;
+        }
+
+        #totalDistance {
+            margin-top: 12px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>  
+    <h1>Optimal Road Network</h1>
+    <div class="top-controls">
+        <button onclick="addCity()">Add City</button>
+        <button onclick="addRoute()">Connect Cities</button>
+        <button onclick="showOptimalRoadNetwork()">Show Optimal Path</button>
+        <button onclick="resetGraph()">Reset</button>
+    </div>
+    <canvas id="graphCanvas" width="900" height="500"></canvas>
+    <div id="totalDistance">Total Distance: 0</div>
+
+    <script>
+        const canvas = document.getElementById("graphCanvas");
+        const ctx = canvas.getContext("2d");
+
+        let cities = [];
+        let routes = [];
+        const cityColor = "#ffffff";
+        const minDistance = 100;
+        let optimalPath = [];
+
+        function getNonOverlappingPosition() {
+            let x, y, attempts = 0;
+            do {
+                x = Math.random() * (canvas.width - 100) + 50;
+                y = Math.random() * (canvas.height - 100) + 50;
+                attempts++;
+            } while (
+                cities.some(city => Math.hypot(city.x - x, city.y - y) < minDistance) && attempts < 100
+            );
+            return { x, y };
+        }
+
+        function addCity() {
+            const name = prompt("Enter city name:");
+            if (!name) return;
+            if (cities.some(city => city.name === name)) {
+                alert("City already exists!");
+                return;
+            }
+            const { x, y } = getNonOverlappingPosition();
+            cities.push({ name, x, y, color: cityColor });
+            drawGraph();
+        }
+
+        function addRoute() {
+            const from = prompt("Enter source city:");
+            const to = prompt("Enter target city:");
+            const weight = parseInt(prompt("Enter distance between cities:"), 10);
+
+            if (!from || !to || isNaN(weight)) return;
+            const source = cities.find(c => c.name === from);
+            const target = cities.find(c => c.name === to);
+            if (!source || !target) {
+                alert("Both cities must exist!");
+                return;
+            }
+
+            const existing = routes.find(
+                e => (e.source === source && e.target === target) || (e.source === target && e.target === source)
+            );
+
+            if (existing) {
+                existing.weight = weight;
+            } else {
+                routes.push({ source, target, weight });
+            }
+
+            drawGraph();
+        }
+
+        function drawGraph(highlighted = []) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            routes.forEach(route => {
+                const isHighlighted = highlighted.includes(route);
+                ctx.beginPath();
+                ctx.moveTo(route.source.x, route.source.y);
+                ctx.lineTo(route.target.x, route.target.y);
+                ctx.strokeStyle = isHighlighted ? "#FFD700" : "#3399ff";
+                ctx.lineWidth = isHighlighted ? 4 : 2;
+                ctx.stroke();
+
+                const midX = (route.source.x + route.target.x) / 2;
+                const midY = (route.source.y + route.target.y) / 2;
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "14px Arial";
+                ctx.fillText(route.weight, midX + 5, midY - 5);
+            });
+
+            cities.forEach(city => {
+                ctx.beginPath();
+                ctx.arc(city.x, city.y, 18, 0, 2 * Math.PI);
+                ctx.fillStyle = city.color;
+                ctx.fill();
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = "#000000";
+                ctx.font = "bold 13px Arial";
+                ctx.fillText(city.name, city.x - 10, city.y + 5);
+            });
+        }
+
+        function showOptimalRoadNetwork() {
+            if (cities.length === 0) return;
+
+            const visited = new Set();
+            const result = [];
+            let total = 0;
+
+            visited.add(cities[0]);
+            while (visited.size < cities.length) {
+                let shortest = null;
+                for (let r of routes) {
+                    if (
+                        (visited.has(r.source) && !visited.has(r.target)) ||
+                        (visited.has(r.target) && !visited.has(r.source))
+                    ) {
+                        if (!shortest || r.weight < shortest.weight) {
+                            shortest = r;
+                        }
+                    }
+                }
+                if (!shortest) break;
+
+                result.push(shortest);
+                total += shortest.weight;
+                visited.add(shortest.source);
+                visited.add(shortest.target);
+            }
+
+            optimalPath = result;
+            drawGraph(optimalPath);
+            document.getElementById("totalDistance").innerText = `Total Distance: ${total}`;
+        }
+
+        function resetGraph() {
+            cities = [];
+            routes = [];
+            optimalPath = [];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById("totalDistance").innerText = "Total Distance: 0";
+        }
+    </script>
+</body>
+</html>
